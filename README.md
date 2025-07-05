@@ -6,13 +6,11 @@
 
 <h1 align="center" style="color:#00C896;">Aptosigma 2025</h1>
 
----
-
 <p align="center">
   <b>Aptosigma 2025</b> is a narrative-driven puzzle game built on the <b style="color:#03A9F4;">Aptos blockchain</b> that educates developers through immersive, hands-on challenges. Players <b style="color:#9C27B0;">stake APT</b> to participate in a hacker-themed journey, solving puzzles based on real Aptos tools and protocols. The platform also allows Aptos community products to be listed in-game, enabling users to discover and interact with them while searching for puzzle answers.
 </p>
 
----
+
 
 # ☑️ Abstract
 
