@@ -7,10 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Loader2, Brain, DollarSign, UserIcon, CheckCircle, ArrowRight } from "lucide-react"
+import { Loader2, Brain, DollarSign, UserIcon, CheckCircle, ArrowRight, Settings } from "lucide-react"
 import { onAuthStateChanged, User } from 'firebase/auth'
-import { doc, setDoc, updateDoc } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore'
 import { auth, db } from '@/firebase/init'
+
+interface QuizData {
+    numberOfQuestions: number
+    difficultyLevel: string
+    calculatedPrice: number
+    configuredAt: string
+    status: string
+}
 
 const QuizConfigurationPage = () => {
     const router = useRouter()
@@ -19,6 +27,8 @@ const QuizConfigurationPage = () => {
     const [error, setError] = useState<string | null>(null)
     const [initializing, setInitializing] = useState(true)
     const [calculatedPrice, setCalculatedPrice] = useState(0)
+    const [dataExists, setDataExists] = useState(false)
+    const [existingData, setExistingData] = useState<QuizData | null>(null)
 
     // Form state
     const [formData, setFormData] = useState({
@@ -39,9 +49,10 @@ const QuizConfigurationPage = () => {
     ]
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setUser(user)
+                await fetchExistingData(user.uid)
                 setInitializing(false)
             } else {
                 // Redirect to auth if not authenticated
@@ -52,15 +63,43 @@ const QuizConfigurationPage = () => {
         return () => unsubscribe()
     }, [router])
 
+    const fetchExistingData = async (userId: string) => {
+        try {
+            const userDocRef = doc(db, 'company', userId)
+            const docSnap = await getDoc(userDocRef)
+
+            if (docSnap.exists()) {
+                const data = docSnap.data()
+                // Check if quiz configuration exists
+                if (data.numberOfQuestions && data.difficultyLevel && data.status === 'configured') {
+                    const quizData: QuizData = {
+                        numberOfQuestions: data.numberOfQuestions,
+                        difficultyLevel: data.difficultyLevel,
+                        calculatedPrice: data.calculatedPrice,
+                        configuredAt: data.configuredAt,
+                        status: data.status
+                    }
+                    setExistingData(quizData)
+                    setDataExists(true)
+                    setCalculatedPrice(data.calculatedPrice)
+                    setFormData({
+                        numberOfQuestions: data.numberOfQuestions.toString(),
+                        difficultyLevel: data.difficultyLevel
+                    })
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching existing quiz data:', error)
+        }
+    }
+
     // Calculate price based on selections
     useEffect(() => {
-        if (formData.numberOfQuestions && formData.difficultyLevel) {
+        if (formData.numberOfQuestions && formData.difficultyLevel && !dataExists) {
             const basePrice = calculatePrice(formData.numberOfQuestions, formData.difficultyLevel)
             setCalculatedPrice(basePrice)
-        } else {
-            setCalculatedPrice(0)
         }
-    }, [formData.numberOfQuestions, formData.difficultyLevel])
+    }, [formData.numberOfQuestions, formData.difficultyLevel, dataExists])
 
     const calculatePrice = (questions: string, difficulty: string) => {
         const questionCount = parseInt(questions)
@@ -167,6 +206,25 @@ const QuizConfigurationPage = () => {
         }
     }
 
+    const handleContinue = () => {
+        router.push('/success')
+    }
+
+    const getDifficultyColor = (difficulty: string) => {
+        const option = difficultyOptions.find(opt => opt.value === difficulty)
+        return option?.color || 'text-white'
+    }
+
+    const getDifficultyLabel = (difficulty: string) => {
+        const option = difficultyOptions.find(opt => opt.value === difficulty)
+        return option?.label || difficulty
+    }
+
+    const getQuestionLabel = (count: number) => {
+        const option = questionOptions.find(opt => opt.value === count.toString())
+        return option?.label || `${count} Questions`
+    }
+
     if (initializing) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black flex items-center justify-center">
@@ -188,10 +246,10 @@ const QuizConfigurationPage = () => {
                         <Brain className="h-8 w-8 text-white" />
                     </div>
                     <h1 className="text-4xl font-bold text-white mb-2">
-                        Configure Your Quiz
+                        {dataExists ? 'Quiz Configuration' : 'Configure Your Quiz'}
                     </h1>
                     <p className="text-xl text-gray-400">
-                        Customize your assessment experience
+                        {dataExists ? 'Your quiz settings are configured' : 'Customize your assessment experience'}
                     </p>
                 </div>
 
@@ -223,6 +281,17 @@ const QuizConfigurationPage = () => {
                                         <p className="text-white">{user.email}</p>
                                     </div>
                                 </div>
+                                {dataExists && existingData?.configuredAt && (
+                                    <div className="flex items-center gap-3 p-3 bg-green-800/20 rounded-lg border border-green-800">
+                                        <Settings className="h-4 w-4 text-green-400" />
+                                        <div>
+                                            <p className="text-sm text-gray-400">Quiz Configured</p>
+                                            <p className="text-white text-sm">
+                                                {new Date(existingData.configuredAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Price Display */}
@@ -230,122 +299,183 @@ const QuizConfigurationPage = () => {
                                 <div className="p-4 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-lg border border-blue-500/30">
                                     <div className="flex items-center gap-2 mb-2">
                                         <DollarSign className="h-5 w-5 text-green-400" />
-                                        <h3 className="text-white font-semibold">Estimated Cost</h3>
+                                        <h3 className="text-white font-semibold">
+                                            {dataExists ? 'Final Cost' : 'Estimated Cost'}
+                                        </h3>
                                     </div>
                                     <p className="text-3xl font-bold text-green-400">${calculatedPrice}</p>
                                     <p className="text-sm text-gray-400 mt-1">
-                                        Based on your selections
+                                        {dataExists ? 'Configuration completed' : 'Based on your selections'}
                                     </p>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
 
-                    {/* Quiz Configuration Form */}
+                    {/* Quiz Configuration Form/Display */}
                     <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
                         <CardHeader>
                             <CardTitle className="text-white flex items-center gap-2">
                                 <Brain className="h-5 w-5" />
                                 Quiz Settings
+                                {dataExists && (
+                                    <CheckCircle className="h-5 w-5 text-green-400 ml-auto" />
+                                )}
                             </CardTitle>
                             <CardDescription className="text-gray-400">
-                                Choose your preferences
+                                {dataExists ? 'Your quiz configuration' : 'Choose your preferences'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-8">
-                                {error && (
-                                    <Alert className="bg-red-900/20 border-red-800">
-                                        <AlertDescription className="text-red-400">
-                                            {error}
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-
-                                {/* Number of Questions */}
-                                <div className="space-y-4">
-                                    <Label className="text-white text-lg font-semibold">
-                                        Number of Questions
-                                    </Label>
-                                    <RadioGroup
-                                        value={formData.numberOfQuestions}
-                                        onValueChange={handleQuestionChange}
-                                        className="space-y-3"
-                                    >
-                                        {questionOptions.map((option) => (
-                                            <div key={option.value} className="flex items-center space-x-3">
-                                                <RadioGroupItem
-                                                    value={option.value}
-                                                    id={`questions-${option.value}`}
-                                                    className="border-gray-600 text-blue-500"
-                                                />
-                                                <Label
-                                                    htmlFor={`questions-${option.value}`}
-                                                    className="text-white cursor-pointer flex-1 p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
-                                                >
-                                                    <div className="flex justify-between items-center">
-                                                        <div>
-                                                            <p className="font-medium">{option.label}</p>
-                                                            <p className="text-sm text-gray-400">{option.description}</p>
-                                                        </div>
-                                                    </div>
-                                                </Label>
+                            {dataExists ? (
+                                // Display existing data (non-editable)
+                                <div className="space-y-8">
+                                    <div className="space-y-4">
+                                        <Label className="text-white text-lg font-semibold">
+                                            Number of Questions
+                                        </Label>
+                                        <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-white font-medium">
+                                                        {getQuestionLabel(existingData?.numberOfQuestions || 0)}
+                                                    </p>
+                                                    <p className="text-sm text-gray-400">
+                                                        {existingData?.numberOfQuestions === 3 && 'Quick assessment'}
+                                                        {existingData?.numberOfQuestions === 5 && 'Standard evaluation'}
+                                                        {existingData?.numberOfQuestions === 10 && 'Comprehensive test'}
+                                                    </p>
+                                                </div>
+                                                <CheckCircle className="h-5 w-5 text-green-400" />
                                             </div>
-                                        ))}
-                                    </RadioGroup>
-                                </div>
+                                        </div>
+                                    </div>
 
-                                {/* Difficulty Level */}
-                                <div className="space-y-4">
-                                    <Label className="text-white text-lg font-semibold">
-                                        Difficulty Level
-                                    </Label>
-                                    <RadioGroup
-                                        value={formData.difficultyLevel}
-                                        onValueChange={handleDifficultyChange}
-                                        className="space-y-3"
-                                    >
-                                        {difficultyOptions.map((option) => (
-                                            <div key={option.value} className="flex items-center space-x-3">
-                                                <RadioGroupItem
-                                                    value={option.value}
-                                                    id={`difficulty-${option.value}`}
-                                                    className="border-gray-600 text-blue-500"
-                                                />
-                                                <Label
-                                                    htmlFor={`difficulty-${option.value}`}
-                                                    className="text-white cursor-pointer flex-1 p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
-                                                >
-                                                    <div className="flex justify-between items-center">
-                                                        <div>
-                                                            <p className={`font-medium ${option.color}`}>{option.label}</p>
-                                                            <p className="text-sm text-gray-400">{option.description}</p>
-                                                        </div>
-                                                    </div>
-                                                </Label>
+                                    <div className="space-y-4">
+                                        <Label className="text-white text-lg font-semibold">
+                                            Difficulty Level
+                                        </Label>
+                                        <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <p className={`font-medium ${getDifficultyColor(existingData?.difficultyLevel || '')}`}>
+                                                        {getDifficultyLabel(existingData?.difficultyLevel || '')}
+                                                    </p>
+                                                    <p className="text-sm text-gray-400">
+                                                        {existingData?.difficultyLevel === 'easy' && 'Basic level questions'}
+                                                        {existingData?.difficultyLevel === 'medium' && 'Intermediate level'}
+                                                        {existingData?.difficultyLevel === 'hard' && 'Advanced level'}
+                                                    </p>
+                                                </div>
+                                                <CheckCircle className="h-5 w-5 text-green-400" />
                                             </div>
-                                        ))}
-                                    </RadioGroup>
-                                </div>
+                                        </div>
+                                    </div>
 
-                                <Button
-                                    type="submit"
-                                    disabled={loading || !formData.numberOfQuestions || !formData.difficultyLevel}
-                                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Configuring Quiz...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Continue to Payment
-                                            <ArrowRight className="ml-2 h-4 w-4" />
-                                        </>
+                                    <Button
+                                        onClick={handleContinue}
+                                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 transition-all duration-200 transform hover:scale-[1.02]"
+                                    >
+                                        Continue to Next Step
+                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                // Show editable form
+                                <form onSubmit={handleSubmit} className="space-y-8">
+                                    {error && (
+                                        <Alert className="bg-red-900/20 border-red-800">
+                                            <AlertDescription className="text-red-400">
+                                                {error}
+                                            </AlertDescription>
+                                        </Alert>
                                     )}
-                                </Button>
-                            </form>
+
+                                    {/* Number of Questions */}
+                                    <div className="space-y-4">
+                                        <Label className="text-white text-lg font-semibold">
+                                            Number of Questions
+                                        </Label>
+                                        <RadioGroup
+                                            value={formData.numberOfQuestions}
+                                            onValueChange={handleQuestionChange}
+                                            className="space-y-3"
+                                        >
+                                            {questionOptions.map((option) => (
+                                                <div key={option.value} className="flex items-center space-x-3">
+                                                    <RadioGroupItem
+                                                        value={option.value}
+                                                        id={`questions-${option.value}`}
+                                                        className="border-gray-600 text-blue-500"
+                                                    />
+                                                    <Label
+                                                        htmlFor={`questions-${option.value}`}
+                                                        className="text-white cursor-pointer flex-1 p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+                                                    >
+                                                        <div className="flex justify-between items-center">
+                                                            <div>
+                                                                <p className="font-medium">{option.label}</p>
+                                                                <p className="text-sm text-gray-400">{option.description}</p>
+                                                            </div>
+                                                        </div>
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </RadioGroup>
+                                    </div>
+
+                                    {/* Difficulty Level */}
+                                    <div className="space-y-4">
+                                        <Label className="text-white text-lg font-semibold">
+                                            Difficulty Level
+                                        </Label>
+                                        <RadioGroup
+                                            value={formData.difficultyLevel}
+                                            onValueChange={handleDifficultyChange}
+                                            className="space-y-3"
+                                        >
+                                            {difficultyOptions.map((option) => (
+                                                <div key={option.value} className="flex items-center space-x-3">
+                                                    <RadioGroupItem
+                                                        value={option.value}
+                                                        id={`difficulty-${option.value}`}
+                                                        className="border-gray-600 text-blue-500"
+                                                    />
+                                                    <Label
+                                                        htmlFor={`difficulty-${option.value}`}
+                                                        className="text-white cursor-pointer flex-1 p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+                                                    >
+                                                        <div className="flex justify-between items-center">
+                                                            <div>
+                                                                <p className={`font-medium ${option.color}`}>{option.label}</p>
+                                                                <p className="text-sm text-gray-400">{option.description}</p>
+                                                            </div>
+                                                        </div>
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </RadioGroup>
+                                    </div>
+
+                                    <Button
+                                        type="submit"
+                                        disabled={loading || !formData.numberOfQuestions || !formData.difficultyLevel}
+                                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Configuring Quiz...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Continue to Payment
+                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                            </>
+                                        )}
+                                    </Button>
+                                </form>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -353,7 +483,10 @@ const QuizConfigurationPage = () => {
                 {/* Footer */}
                 <div className="text-center mt-8">
                     <p className="text-gray-500 text-sm">
-                        Your quiz configuration will be saved securely. Price may vary based on current rates.
+                        {dataExists
+                            ? 'Your quiz configuration is saved and ready to use'
+                            : 'Your quiz configuration will be saved securely. Price may vary based on current rates.'
+                        }
                     </p>
                 </div>
             </div>
