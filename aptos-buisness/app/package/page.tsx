@@ -27,9 +27,9 @@ const QuizConfigurationPage = () => {
     })
 
     const questionOptions = [
-        { value: '10', label: '10 Questions', description: 'Quick assessment' },
-        { value: '20', label: '20 Questions', description: 'Standard evaluation' },
-        { value: '30', label: '30 Questions', description: 'Comprehensive test' }
+        { value: '3', label: '3 Questions', description: 'Quick assessment' },
+        { value: '5', label: '5 Questions', description: 'Standard evaluation' },
+        { value: '10', label: '10 Questions', description: 'Comprehensive test' }
     ]
 
     const difficultyOptions = [
@@ -67,15 +67,15 @@ const QuizConfigurationPage = () => {
 
         // Base price ranges for different combinations
         const priceRanges = {
-            '10-easy': [8, 15],
-            '10-medium': [12, 22],
-            '10-hard': [18, 30],
-            '20-easy': [15, 28],
-            '20-medium': [22, 40],
-            '20-hard': [35, 55],
-            '30-easy': [20, 38],
-            '30-medium': [32, 58],
-            '30-hard': [48, 75]
+            '3-easy': [1, 2],
+            '3-medium': [1.5, 3],
+            '3-hard': [2, 4],
+            '5-easy': [2, 4],
+            '5-medium': [3, 6],
+            '5-hard': [4, 8],
+            '10-easy': [3, 6],
+            '10-medium': [5, 10],
+            '10-hard': [7, 14]
         }
 
         const key = `${questionCount}-${difficulty}`

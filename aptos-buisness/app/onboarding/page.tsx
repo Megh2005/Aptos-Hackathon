@@ -77,7 +77,7 @@ const OnboardingPage = () => {
             console.log('✅ Company information updated successfully')
 
             // Redirect to dashboard or next page
-            router.push('/dashboard')
+            router.push('/package')
 
         } catch (error: any) {
             console.error('❌ Error updating company info:', error)
