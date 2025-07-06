@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -66,6 +67,8 @@ export default function GameInterface({
   onGameComplete,
   onGameFailed
 }: GameInterfaceProps) {
+  const router = useRouter();
+
   const [gameState, setGameState] = useState<GameState>({
     questionIndex: 0,
     sessionScore: 0,
@@ -122,9 +125,19 @@ export default function GameInterface({
         await FirebaseGameService.loseLife(walletState.address);
       }
       setShowNoLivesPopup(true);
+
+      // Redirect to leaderboard after 3 seconds
+      setTimeout(() => {
+        router.push('/leaderboard');
+      }, 3000);
     } catch (error) {
       console.error('Error during no lives handling:', error);
       setShowNoLivesPopup(true);
+
+      // Still redirect even if there's an error
+      setTimeout(() => {
+        router.push('/leaderboard');
+      }, 3000);
     }
   };
 
@@ -448,6 +461,9 @@ export default function GameInterface({
           lives: 0,
           failed: true
         }));
+
+        // Trigger the no lives popup and redirect
+        await handleNoLivesPopup();
       } else {
         if (walletState.address) {
           await FirebaseGameService.loseLife(walletState.address);
@@ -512,10 +528,10 @@ export default function GameInterface({
               <Skull />
             </div>
             <div className="gothic-text text-3xl mb-4 text-red-500">
-              NO LIVES REMAINING
+              GAME OVER
             </div>
             <div className="terminal-text text-base mb-6 opacity-80">
-              The Phantom Ledger has drained your life force.
+              All lives have been depleted.
               <br />
               <br />
               <div className="grid grid-cols-2 gap-4 text-left">
@@ -523,20 +539,12 @@ export default function GameInterface({
                 <div>Score: {gameState.sessionScore} PTS</div>
               </div>
               <br />
-              All progress is preserved. Your session will continue when you return.
+              Redirecting to leaderboard...
             </div>
-            <div className="terminal-text text-sm opacity-60 mb-4">
-              Lives regenerate over time or can be purchased with APT tokens.
+            <div className="w-12 h-12 border-4 border-red-500 rotating-loader mx-auto mb-4"></div>
+            <div className="terminal-text text-sm opacity-60">
+              Redirecting in 3 seconds...
             </div>
-            <Button
-              onClick={() => {
-                setShowNoLivesPopup(false);
-                onGameFailed();
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white terminal-text px-8"
-            >
-              RETURN TO MENU
-            </Button>
           </Card>
         </div>
       </div>
@@ -555,9 +563,9 @@ export default function GameInterface({
             LIFE FORCE DEPLETED
           </div>
           <div className="terminal-text text-sm opacity-80">
-            Processing life force depletion...
+            Processing game over...
             <br />
-            Progress preserved: {gameState.sessionScore} PTS
+            Final Score: {gameState.sessionScore} PTS
           </div>
           <div className="w-12 h-12 border-4 border-white rotating-loader mx-auto mt-6"></div>
         </Card>
@@ -699,8 +707,8 @@ export default function GameInterface({
                 onClick={() => handleAnswerSelect(index)}
                 variant={gameState.selectedAnswer === index ? "default" : "outline"}
                 className={`w-full text-left p-4 h-auto ${gameState.selectedAnswer === index
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-transparent border-white text-white hover:bg-gray-800'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-transparent border-white text-white hover:bg-gray-800'
                   }`}
                 disabled={loading}
               >

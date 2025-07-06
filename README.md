@@ -127,4 +127,19 @@ http://localhost:3000
   <strong style="color:#00C896;">Aptosigma 2025</strong> fuses <strong style="color:#03A9F4;">gamified learning</strong> with <strong style="color:#E91E63;">ecosystem promotion</strong>. By using a <strong style="color:#9C27B0;">stake-to-play</strong> model and real Aptos tools, developers gain hands-on knowledge while exploring new community products. This creates an interactive pipeline where learning meets discovery, empowering the Aptos network through play.
 </p>
 
-# 
+# Developer's Contact
+# Developer's Contact
+
+## Team Members
+
+- **Megh Deb**
+  - Role: Lead Developer & Project Manager
+  - Aptos Wallet: `0x4afbef1832e39a9e7f4ca7434bcf216e4d2864f9da4003d2627558928ac30f54`
+  - GitHub: [@Megh2005](https://github.com/Megh2005)
+
+- **Aditya Singh**
+  - Role: UI-UX Developer
+  - Aptos Wallet: `0x7a6f7f8a9b0c1d2e3f4g5h6i7j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z4a5b`
+  - GitHub: [@AdityaSingh](https://github.com/adityas1309)
+
+For inquiries and support, please reach out to: aptosigma2025@gmail.com
